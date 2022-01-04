@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>organize-photos</title>
+    <style>
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        box-sizing: border-box;
+      }
+      body {
+        display: flex;
+        flex-direction: row;
+      }
+
+      #media {
+        position: relative;
+        flex: 1;
+        background-color: black;
+        color: white;
+        height: 100%;
+      }
+      #media-name {
+        position: absolute;
+        z-index: 1;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0.4);
+        font-size: 0.75em;
+        padding: 0.5em 1em;
+        text-align: center;
+      }
+      #media-controls-left,
+      #media-controls-right {
+        position: absolute;
+        z-index: 1;
+        height: 400px;
+        top: calc(50% - 200px);
+        display: flex;
+        align-items: center;
+        pointer-events: none;
+      }
+      #media-controls-left button,
+      #media-controls-right button {
+        pointer-events: initial;
+        font-size: 2em;
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 0.5em 0.5em;
+      }
+      #media-controls-left {
+        left: 1em;
+      }
+      #media-controls-right {
+        right: 1em;
+      }
+
+      #media-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      #media-content img,
+      #media-content video {
+        max-width: 100%;
+        max-height: 100%;
+      }
+      #media-content video {
+        width: 100%;
+        height: auto;
+      }
+
+      #folders {
+        min-width: 300px;
+        width: 300px;
+        background-color: #f0f0f0;
+        padding: 1em;
+        overflow: auto;
+      }
+      #folders > * {
+        padding: 0.5em 1em;
+        margin: 0.5em 0 0 0.5em;
+      }
+    </style>
+    <script>
+      let files;
+      let idx;
+      let folders;
+      let mediaContentDiv;
+      let mediaNameDiv;
+      let showPrevMediaButton;
+      let showNextMediaButton;
+      let foldersDiv;
+
+      document.addEventListener("DOMContentLoaded", main);
+
+      async function main() {
+        foldersDiv = document.querySelector("#folders");
+        mediaContentDiv = document.querySelector("#media-content");
+        mediaNameDiv = document.querySelector("#media-name");
+        showPrevMediaButton = document.querySelector(
+          "#media-controls-left button"
+        );
+        showNextMediaButton = document.querySelector(
+          "#media-controls-right button"
+        );
+
+        const data = await (await fetch("./files-and-folders")).json();
+        files = data.files;
+        folders = data.folders;
+        idx = 0;
+
+        for (folder of folders) {
+          foldersDiv.appendChild(newFolder(folder));
+        }
+
+        showMedia();
+
+        showPrevMediaButton.onclick = (e) => showPrevMedia();
+        showNextMediaButton.onclick = (e) => showNextMedia();
+      }
+
+      function newFolder(name) {
+        let button = document.createElement("button");
+        let nameParts = name.split("/");
+        button.innerText = nameParts[nameParts.length - 1];
+        button.onclick = function () {
+          addFileToFolder(name);
+        };
+        return button;
+      }
+
+      function showPrevMedia() {
+        if (idx > 0) {
+          idx--;
+        }
+        showMedia();
+      }
+
+      function showNextMedia() {
+        if (idx < files.length) {
+          idx++;
+        }
+        showMedia();
+      }
+
+      function showMedia() {
+        if (idx >= 0 && idx < files.length) {
+          let file = files[idx];
+          let html;
+
+          let fileLower = file.toLocaleLowerCase();
+          if (fileLower.match(/\.jpe?g$/)) {
+            html = `<img src="${file}" />`;
+          } else if (fileLower.match(/\.mov|mp4$/)) {
+            html = `<video autoplay controls src="${file}"></video>`;
+          } else {
+            html = `Do not know how to deal with ${file}`;
+          }
+          mediaContentDiv.innerHTML = html;
+          mediaNameDiv.innerHTML = file;
+        }
+      }
+
+      async function addFileToFolder(folder) {
+        let file = files[idx];
+        try {
+          let res = await postData("/move", { file, folder });
+          if (!res.file) {
+            throw new Error("Didn't get the file's new path");
+          }
+          files[idx] = res.file;
+          showNextMedia();
+        } catch (e) {
+          window.alert(e.message);
+        }
+      }
+
+      async function postData(url = "", data = {}) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        });
+        return response.json();
+      }
+    </script>
+  </head>
+  <body>
+    <div id="media">
+      <div id="media-name"></div>
+      <div id="media-content"></div>
+      <div id="media-controls-left"><button>←</button></div>
+      <div id="media-controls-right"><button>→</button></div>
+    </div>
+    <div id="folders"></div>
+  </body>
+</html>
