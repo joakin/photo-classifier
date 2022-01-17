@@ -30,7 +30,25 @@ const server = http.createServer(async (req, res) => {
     let stat = fs.statSync(file, { throwIfNoEntry: false });
     if (!stat || stat.isDirectory()) plain(res, 404, "not found");
     else {
-      fs.createReadStream(file).pipe(res);
+      let total = stat.size;
+      if (req.headers.range) {
+          let range = req.headers.range;
+          let parts = range.replace(/bytes=/, "").split("-");
+          let partialStart = parts[0];
+          let partialEnd = parts[1];
+
+          let start = parseInt(partialStart, 10);
+          let end = partialEnd ? parseInt(partialEnd, 10) : total-1;
+          let chunksize = (end-start)+1;
+          let readStream = fs.createReadStream(file, {start: start, end: end});
+          res.writeHead(206, {
+              'Content-Range': 'bytes ' + start + '-' + end + '/' + total,
+              'Accept-Ranges': 'bytes', 'Content-Length': chunksize
+          });
+          readStream.pipe(res);
+      } else {
+          fs.createReadStream(file).pipe(res);
+      }
     }
   }
 });

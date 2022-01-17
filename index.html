@@ -183,7 +183,7 @@
           if (fileLower.match(/\.jpe?g$/)) {
             html = `<img src="${file}" />`;
           } else if (fileLower.match(/\.mov|mp4$/)) {
-            html = `<video autoplay controls src="${file}"></video>`;
+            html = `<video autoplay controls type='video/mp4' src="${file}"></video>`;
           } else {
             html = `Do not know how to deal with ${file}`;
           }
